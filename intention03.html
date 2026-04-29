@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Russisch-Übung: ПОСМОТРИМ</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --error-color: #e74c3c;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 650px;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .progress {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-bottom: 1rem;
+            text-align: right;
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--secondary-color);
+            margin-top: 0;
+        }
+
+        .dialog-box {
+            background: #f9f9f9;
+            border-left: 5px solid var(--secondary-color);
+            padding: 1.2rem;
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .question {
+            font-weight: bold;
+            margin-bottom: 1.2rem;
+            display: block;
+        }
+
+        .options {
+            display: grid;
+            gap: 12px;
+        }
+
+        button.option-btn {
+            background: white;
+            border: 2px solid #ddd;
+            padding: 14px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            text-align: left;
+            width: 100%;
+            color: var(--primary-color);
+        }
+
+        button.option-btn:hover:not([disabled]) {
+            border-color: var(--secondary-color);
+            background-color: #ebf5fb;
+        }
+
+        button.correct {
+            background-color: var(--success-color) !important;
+            color: white;
+            border-color: var(--success-color);
+        }
+
+        button.wrong {
+            background-color: var(--error-color) !important;
+            color: white;
+            border-color: var(--error-color);
+        }
+
+        #feedback {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            min-height: 50px;
+            font-weight: 500;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        .next-btn { background: var(--secondary-color); color: white; }
+        .reset-btn { background: #95a5a6; color: white; }
+        .nav-btn:hover { opacity: 0.8; }
+        .hidden { display: none; }
+
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .container { padding: 1.2rem; }
+            h2 { font-size: 1.1rem; }
+            button.option-btn { font-size: 0.95rem; padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="quiz-container">
+    <div class="progress">Aufgabe <span id="current-idx">1</span> von 5</div>
+    <h2 id="title">ПОСМОТРИМ verstehen</h2>
+    
+    <div id="quiz-content">
+        <div class="dialog-box" id="dialog">
+            </div>
+
+        <span class="question" id="question-text">Warum wird hier das Wort „посмотрим“ verwendet?</span>
+
+        <div class="options" id="options-container">
+            </div>
+
+        <div id="feedback" class="hidden"></div>
+    </div>
+
+    <div class="nav-buttons">
+        <button class="nav-btn reset-btn" onclick="initQuiz()">Neustart</button>
+        <button id="next-btn" class="nav-btn next-btn hidden" onclick="nextQuestion()">Nächste Aufgabe</button>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        {
+            dialog: "„Ты поедешь с нами кататься на сноубордах?“ <br> „У меня много работы и к родителям надо съездить... <strong>посмотрим</strong>.“",
+            options: [
+                { text: "Unentschlossenheit wegen anderer Verpflichtungen", correct: true },
+                { text: "Eine höfliche Absage ohne Begründung", correct: false },
+                { text: "Eine begeisterte Zusage", correct: false }
+            ],
+            explanation: "Richtig! Die Person weiß es jetzt noch nicht, weil Arbeit und Elternbesuch dazwischenkommen könnten."
+        },
+        {
+            dialog: "„Если ты не будешь заниматься, ты плохо сдашь экзамены!“ <br> „Ой, <strong>посмотрим</strong>.“",
+            options: [
+                { text: "Zustimmung zur Warnung", correct: false },
+                { text: "Reaktion auf eine negative Prognose", correct: true },
+                { text: "Angst vor der Prüfung", correct: false }
+            ],
+            explanation: "Korrekt! Hier wird abgewartet, wie das Ergebnis in der Zukunft tatsächlich ausfallen wird."
+        },
+        {
+            dialog: "Was ist die Kernbedeutung von <strong>посмотрим</strong> laut Anleitung?",
+            options: [
+                { text: "„Ich habe es bereits gesehen.“", correct: false },
+                { text: "„Jetzt wissen wir es nicht, aber wir erfahren es später.“", correct: true },
+                { text: "„Ich möchte mir das Video ansehen.“", correct: false }
+            ],
+            explanation: "Genau! Der Fokus liegt darauf, dass die Information erst in der Zukunft verfügbar sein wird."
+        },
+        {
+            dialog: "Jemand sagt: „Wir wissen es jetzt nicht, aber wir erfahren es in der Zukunft.“ <br> Welches russische Wort passt dazu?",
+            options: [
+                { text: "хорошо", correct: false },
+                { text: "сейчас", correct: false },
+                { text: "посмотрим", correct: true }
+            ],
+            explanation: "Richtig! Das ist die exakte Definition, die im Video gegeben wurde."
+        },
+        {
+            dialog: "In welcher Situation ist <strong>посмотрим</strong> am unpassendsten?",
+            options: [
+                { text: "Wenn man eine feste, garantierte Zusage geben will.", correct: true },
+                { text: "Wenn man auf eine Einladung unsicher reagiert.", correct: false },
+                { text: "Wenn man eine Warnung skeptisch sieht.", correct: false }
+            ],
+            explanation: "Richtig. Da „посмотрим“ Ungewissheit ausdrückt, passt es nicht zu einer festen Garantie."
+        }
+    ];
+
+    let currentQuestionIndex = 0;
+
+    function initQuiz() {
+        currentQuestionIndex = 0;
+        showQuestion();
+    }
+
+    function showQuestion() {
+        const q = questions[currentQuestionIndex];
+        document.getElementById('current-idx').innerText = currentQuestionIndex + 1;
+        document.getElementById('dialog').innerHTML = q.dialog;
+        document.getElementById('feedback').classList.add('hidden');
+        document.getElementById('next-btn').classList.add('hidden');
+        
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+        
+        q.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt.text;
+            btn.onclick = () => selectOption(btn, opt.correct, q.explanation);
+            container.appendChild(btn);
+        });
+    }
+
+    function selectOption(clickedBtn, isCorrect, explanation) {
+        const buttons = document.querySelectorAll('.option-btn');
+        const feedback = document.getElementById('feedback');
+        
+        buttons.forEach(btn => btn.disabled = true);
+        
+        if (isCorrect) {
+            clickedBtn.classList.add('correct');
+            feedback.style.backgroundColor = '#d4edda';
+            feedback.style.color = '#155724';
+        } else {
+            clickedBtn.classList.add('wrong');
+            feedback.style.backgroundColor = '#f8d7da';
+            feedback.style.color = '#721c24';
+            // Markiere die richtige Lösung
+            buttons.forEach((btn, idx) => {
+                if (questions[currentQuestionIndex].options[idx].correct) {
+                    btn.classList.add('correct');
+                }
+            });
+        }
+        
+        feedback.innerHTML = explanation;
+        feedback.classList.remove('hidden');
+        
+        if (currentQuestionIndex < questions.length - 1) {
+            document.getElementById('next-btn').classList.remove('hidden');
+        } else {
+            document.getElementById('title').innerText = "Training beendet!";
+        }
+    }
+
+    function nextQuestion() {
+        currentQuestionIndex++;
+        showQuestion();
+    }
+
+    // Start
+    initQuiz();
+</script>
+
+</body>
+</html>
