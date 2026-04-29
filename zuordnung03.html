@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zuordnung: Situation & Reaktion</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h2 { text-align: center; color: var(--primary); margin-bottom: 0.5rem; }
+        p.desc { text-align: center; color: #666; margin-bottom: 2rem; font-size: 0.9rem; }
+
+        .game-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 2rem;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .item {
+            background: #fff;
+            border: 2px solid #ddd;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: opacity 0.6s ease, transform 0.6s ease, background-color 0.3s ease;
+            font-size: 0.95rem;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            opacity: 1;
+        }
+
+        .item.selected { border-color: var(--accent); background: #ebf5fb; }
+        
+        /* Effekt für selbst gefundene Paare */
+        .item.fade-out {
+            opacity: 0;
+            transform: scale(0.9);
+            pointer-events: none;
+        }
+
+        /* Effekt für die Lösung (bleibt sichtbar) */
+        .item.solution-visible {
+            cursor: default;
+            border-style: solid;
+            transform: scale(1.02);
+        }
+
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .reset-btn { background: #95a5a6; color: white; }
+        .sol-btn { background: #f39c12; color: white; }
+        .btn:hover { opacity: 0.9; }
+
+        @media (max-width: 600px) {
+            .game-area { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Situation & Reaktion zuordnen</h2>
+    <p class="desc">Klicke eine Situation links und die passende Antwort rechts. Richtig gelöste Paare verschwinden im Spielmodus von selbst.</p>
+    
+    <div class="game-area">
+        <div class="column" id="left-col"></div>
+        <div class="column" id="right-col"></div>
+    </div>
+
+    <div class="controls">
+        <button class="btn reset-btn" onclick="initGame()">Neustart</button>
+        <button class="btn sol-btn" onclick="showSolution()">Lösung anzeigen</button>
+    </div>
+</div>
+
+<script>
+    const pairs = [
+        { sit: "Если ты не будешь заниматься, ты плохо сдашь экзамены!", res: "Ой, посмотрим.", color: "#FFDDC1" },
+        { sit: "Ты поедешь с нами кататься на сноубордах?", res: "У меня много работы и к родителям надо съездить... посмотрим.", color: "#C1E1FF" },
+        { sit: "Что значит это слово?", res: "Сейчас мы это не знаем, но мы узнаем в будущем.", color: "#C1FFD7" },
+        { sit: "Ты уже решил, что будешь делать завтра?", res: "Я не знаю, посмотрим.", color: "#F0C1FF" },
+        { sit: "Как думаешь, погоda будет хорошей?", res: "Не могу дать ответ, посмотрим.", color: "#FFF9C1" }
+    ];
+
+    let selectedLeft = null;
+
+    function initGame() {
+        selectedLeft = null;
+        const leftCol = document.getElementById('left-col');
+        const rightCol = document.getElementById('right-col');
+        
+        const lefts = pairs.map((p, i) => ({ text: p.sit, id: i })).sort(() => Math.random() - 0.5);
+        const rights = pairs.map((p, i) => ({ text: p.res, id: i })).sort(() => Math.random() - 0.5);
+
+        render(leftCol, lefts, 'left');
+        render(rightCol, rights, 'right');
+    }
+
+    function render(col, data, side) {
+        col.innerHTML = '';
+        data.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.innerText = item.text;
+            div.dataset.id = item.id;
+            div.onclick = () => handleSelect(div, side);
+            col.appendChild(div);
+        });
+    }
+
+    function handleSelect(el, side) {
+        if (el.classList.contains('fade-out') || el.classList.contains('solution-visible')) return;
+
+        if (side === 'left') {
+            document.querySelectorAll('#left-col .item').forEach(i => i.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedLeft = el;
+        } else if (side === 'right' && selectedLeft) {
+            if (el.dataset.id === selectedLeft.dataset.id) {
+                const pairColor = pairs[el.dataset.id].color;
+                el.style.backgroundColor = pairColor;
+                selectedLeft.style.backgroundColor = pairColor;
+                
+                const item1 = el;
+                const item2 = selectedLeft;
+                
+                selectedLeft.classList.remove('selected');
+                selectedLeft = null;
+
+                // Nur selbst gefundene Paare verschwinden langsam
+                setTimeout(() => {
+                    item1.classList.add('fade-out');
+                    item2.classList.add('fade-out');
+                }, 800);
+            } else {
+                el.style.borderColor = 'var(--error)';
+                setTimeout(() => el.style.borderColor = '#ddd', 500);
+            }
+        }
+    }
+
+    function showSolution() {
+        const leftItems = document.querySelectorAll('#left-col .item');
+        const rightItems = document.querySelectorAll('#right-col .item');
+        
+        leftItems.forEach(l => {
+            const id = l.dataset.id;
+            const r = Array.from(rightItems).find(ri => ri.dataset.id === id);
+            const pairColor = pairs[id].color;
+
+            // Markieren und sichtbar lassen
+            l.classList.add('solution-visible');
+            r.classList.add('solution-visible');
+            l.style.backgroundColor = pairColor;
+            r.style.backgroundColor = pairColor;
+            l.style.borderColor = pairColor;
+            r.style.borderColor = pairColor;
+            
+            // Falls sie gerade am Verschwinden waren, stoppen
+            l.classList.remove('fade-out');
+            r.classList.remove('fade-out');
+            l.style.opacity = "1";
+            r.style.opacity = "1";
+        });
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
