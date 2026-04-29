@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio-Check: Russische Intention</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f0f3f5;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .audio-card {
+            background: #f9f9f9;
+            border: 2px solid #eee;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .play-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            outline: none;
+        }
+
+        .play-btn:active { transform: scale(0.95); }
+        .play-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .choice-btn {
+            padding: 16px;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: 0.3s;
+            color: var(--primary);
+        }
+
+        .choice-btn:hover:not([disabled]) { border-color: var(--accent); background: #f0f7ff; }
+        .correct { background: var(--success) !important; color: white; border-color: var(--success); }
+        .wrong { background: var(--error) !important; color: white; border-color: var(--error); }
+
+        .feedback {
+            margin-top: 20px;
+            min-height: 40px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #95a5a6;
+            color: white;
+            font-weight: bold;
+            flex: 1;
+        }
+
+        .hidden { display: none; }
+
+        @media (max-width: 480px) {
+            .container { padding: 1.5rem 1rem; }
+            .choice-btn { font-size: 1rem; padding: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="setup-screen">
+        <h2>Audio-Check</h2>
+        <p>Höre den Sprecher und entscheide: <br>Gibt er eine Zusage oder wird die Entscheidung vertagt?</p>
+        <button class="nav-btn" style="background: var(--accent); margin-top: 20px;" onclick="startQuiz()">Übung starten</button>
+    </div>
+
+    <div id="quiz-screen" class="hidden">
+        <div style="font-size: 0.9rem; color: #7f8c8d;">Aufgabe <span id="current-idx">1</span> von 6</div>
+        
+        <div class="audio-card">
+            <button id="speaker-btn" class="play-btn" onclick="playAudio()">▶</button>
+            <p style="margin-top: 15px; color: #666; font-size: 0.9rem;">Tippe auf Play, um den russischen Satz zu hören.</p>
+        </div>
+
+        <div class="options-grid">
+            <button class="choice-btn" onclick="check(false)">Zusage / Bestätigung</button>
+            <button class="choice-btn" onclick="check(true)">Entscheidung vertagt</button>
+        </div>
+
+        <div id="feedback" class="feedback"></div>
+        
+        <div class="controls">
+            <button class="nav-btn" onclick="location.reload()">Neustart</button>
+            <button id="next-btn" class="nav-btn hidden" style="background: var(--accent)" onclick="next()">Weiter</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const clips = [
+        { text: "У меня много работы... посмотрим.", isVertagt: true, info: "Richtig! Entscheidung wird wegen Arbeit vertagt." },
+        { text: "Да, я приду завтра.", isVertagt: false, info: "Richtig! Das ist eine klare Zusage." },
+        { text: "Ой, посмотрим, как я сдам экзамены.", isVertagt: true, info: "Richtig! Das Ergebnis liegt in der Zukunft." },
+        { text: "Я точно буду там.", isVertagt: false, info: "Richtig! Eine eindeutige Bestätigung." },
+        { text: "К родителям надо съездить... посмотрим.", isVertagt: true, info: "Richtig! Ein Termin steht noch nicht fest." },
+        { text: "Хорошо, я согласен.", isVertagt: false, info: "Richtig! Hier wird nichts vertagt." }
+    ];
+
+    let current = 0;
+    let synth = window.speechSynthesis;
+    let maleVoice = null;
+
+    function loadVoices() {
+        const voices = synth.getVoices();
+        // Suche gezielt nach russischsprachigen Männern
+        maleVoice = voices.find(v => v.lang.includes('ru') && 
+            (v.name.toLowerCase().includes('dmitry') || v.name.toLowerCase().includes('pavel') || v.name.toLowerCase().includes('male'))) 
+            || voices.find(v => v.lang.includes('ru'));
+    }
+
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    function startQuiz() {
+        document.getElementById('setup-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.remove('hidden');
+        loadVoices();
+    }
+
+    function playAudio() {
+        if (!maleVoice) loadVoices();
+        synth.cancel(); // Vorherige Audio stoppen
+        const utter = new SpeechSynthesisUtterance(clips[current].text);
+        utter.voice = maleVoice;
+        utter.lang = 'ru-RU';
+        utter.rate = 0.85; 
+        synth.speak(utter);
+    }
+
+    function check(userChoice) {
+        const item = clips[current];
+        const buttons = document.querySelectorAll('.choice-btn');
+        const fb = document.getElementById('feedback');
+        
+        buttons.forEach(b => b.disabled = true);
+
+        if (userChoice === item.isVertagt) {
+            fb.innerText = "✓ " + item.info;
+            fb.style.color = "var(--success)";
+            event.target.classList.add('correct');
+        } else {
+            fb.innerText = "✗ Das war nicht richtig.";
+            fb.style.color = "var(--error)";
+            event.target.classList.add('wrong');
+            // Zeige richtige Lösung
+            buttons[item.isVertagt ? 1 : 0].classList.add('correct');
+        }
+
+        if (current < clips.length - 1) {
+            document.getElementById('next-btn').classList.remove('hidden');
+        } else {
+            fb.innerText += " - Training abgeschlossen!";
+        }
+    }
+
+    function next() {
+        current++;
+        document.getElementById('current-idx').innerText = current + 1;
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('next-btn').classList.add('hidden');
+        const buttons = document.querySelectorAll('.choice-btn');
+        buttons.forEach(b => {
+            b.disabled = false;
+            b.classList.remove('correct', 'wrong');
+        });
+    }
+</script>
+
+</body>
+</html>
