@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Russisch-Übung: Dialoge ordnen</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --error-color: #e74c3c;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .progress { font-size: 0.8rem; color: #7f8c8d; text-align: right; }
+        h2 { text-align: center; color: var(--secondary-color); font-size: 1.3rem; margin-top: 0.5rem; }
+        p.instruction { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 1.5rem; }
+
+        #drag-area { display: flex; flex-direction: column; gap: 10px; }
+
+        .draggable-item {
+            background: #fff;
+            border: 2px solid #ddd;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            font-size: 0.95rem;
+            transition: 0.2s;
+        }
+
+        .draggable-item:active { cursor: grabbing; }
+        .draggable-item.dragging { opacity: 0.4; background: #ebf5fb; }
+        .handle { margin-right: 12px; color: #ccc; }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 1.5rem;
+        }
+
+        .btn {
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .check-btn { background: var(--secondary-color); color: white; }
+        .reset-btn { background: #95a5a6; color: white; }
+        .solution-btn { background: #f39c12; color: white; grid-column: span 2; }
+        .next-btn { background: var(--success-color); color: white; grid-column: span 2; }
+        .btn:hover { opacity: 0.9; }
+
+        #result-message { margin-top: 1rem; text-align: center; font-weight: bold; min-height: 1.2rem; }
+        .correct { border-color: var(--success-color) !important; background: #eafaf1; }
+        .wrong { border-color: var(--error-color) !important; background: #fdf2f2; }
+        .hidden { display: none; }
+
+        @media (max-width: 480px) {
+            h2 { font-size: 1.1rem; }
+            .draggable-item { font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="progress">Dialog <span id="current-idx">1</span> von 5</div>
+    <h2>Reihenfolge ordnen</h2>
+    <p class="instruction">Verschiebe die Zeilen in die logisch richtige Abfolge.</p>
+    
+    <div id="drag-area"></div>
+    <div id="result-message"></div>
+
+    <div class="controls">
+        <button class="btn check-btn" onclick="checkOrder()">Prüfen</button>
+        <button class="btn reset-btn" onclick="initTask()">Mischen</button>
+        <button id="sol-btn" class="btn solution-btn" onclick="showSolution()">Lösung anzeigen</button>
+        <button id="next-btn" class="btn next-btn hidden" onclick="nextDialog()">Nächster Dialog</button>
+    </div>
+</div>
+
+<script>
+    const dialogs = [
+        {
+            correct: ["Ты поедешь с нами кататься на сноубордах?", "У меня много работы и к родителям надо съездить...", "посмотрим."],
+            msg: "Richtig! Die Person ist aufgrund ihrer Arbeit noch unsicher."
+        },
+        {
+            correct: ["Если ты не будешь заниматься, ты плохо сдашь экзамены!", "Ой, посмотрим.", "Мы узнаем, как я сдам экзамены."],
+            msg: "Korrekt! Das Ergebnis der Prüfung liegt in der Zukunft."
+        },
+        {
+            correct: ["Что значит это слово?", "Мы используем его, если хотим сказать:", "сейчас мы это не знаем, но мы узнаем в будущем."],
+            msg: "Sehr gut! Das ist die exakte Definition aus dem Video."
+        },
+        {
+            correct: ["Ты уже решил, куда поедешь в отпуск?", "Я ещё думаю.", "посмотрим."],
+            msg: "Richtig! Eine klassische Verwendung bei Unentschlossenheit."
+        },
+        {
+            correct: ["Слышали ли вы в речи носителей языка слово посмотрим?", "Что значит это слово?", "Сейчас я не могу дать ответ."],
+            msg: "Stimmt! Es leitet oft eine Erklärung oder eine Bedenkzeit ein."
+        }
+    ];
+
+    let currentIdx = 0;
+
+    function initTask() {
+        const dragArea = document.getElementById('drag-area');
+        const msg = document.getElementById('result-message');
+        document.getElementById('current-idx').innerText = currentIdx + 1;
+        document.getElementById('next-btn').classList.add('hidden');
+        document.getElementById('sol-btn').classList.remove('hidden');
+        msg.innerText = '';
+        
+        let items = [...dialogs[currentIdx].correct];
+        // Mischen, bis es nicht mehr der Lösung entspricht
+        do {
+            items.sort(() => Math.random() - 0.5);
+        } while (JSON.stringify(items) === JSON.stringify(dialogs[currentIdx].correct));
+        
+        renderItems(items);
+    }
+
+    function renderItems(items) {
+        const dragArea = document.getElementById('drag-area');
+        dragArea.innerHTML = '';
+        items.forEach((text) => {
+            const div = document.createElement('div');
+            div.className = 'draggable-item';
+            div.draggable = true;
+            div.innerHTML = `<span class="handle">☰</span> <span>${text}</span>`;
+            div.addEventListener('dragstart', () => div.classList.add('dragging'));
+            div.addEventListener('dragend', () => div.classList.remove('dragging'));
+            dragArea.appendChild(div);
+        });
+    }
+
+    const dragArea = document.getElementById('drag-area');
+    dragArea.addEventListener('dragover', e => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(dragArea, e.clientY);
+        const dragging = document.querySelector('.dragging');
+        if (afterElement == null) {
+            dragArea.appendChild(dragging);
+        } else {
+            dragArea.insertBefore(dragging, afterElement);
+        }
+    });
+
+    function getDragAfterElement(container, y) {
+        const draggables = [...container.querySelectorAll('.draggable-item:not(.dragging)')];
+        return draggables.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else { return closest; }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function checkOrder() {
+        const currentItems = [...document.querySelectorAll('.draggable-item')];
+        const msg = document.getElementById('result-message');
+        let isAllCorrect = true;
+
+        currentItems.forEach((item, index) => {
+            const text = item.querySelector('span:last-child').innerText.trim();
+            if (text === dialogs[currentIdx].correct[index]) {
+                item.classList.add('correct');
+                item.classList.remove('wrong');
+            } else {
+                item.classList.add('wrong');
+                item.classList.remove('correct');
+                isAllCorrect = false;
+            }
+        });
+
+        if (isAllCorrect) {
+            msg.style.color = 'var(--success-color)';
+            msg.innerText = dialogs[currentIdx].msg;
+            document.getElementById('next-btn').classList.remove('hidden');
+            document.getElementById('sol-btn').classList.add('hidden');
+        } else {
+            msg.style.color = 'var(--error-color)';
+            msg.innerText = 'Versuch es noch einmal!';
+        }
+    }
+
+    function showSolution() {
+        renderItems(dialogs[currentIdx].correct);
+        checkOrder();
+    }
+
+    function nextDialog() {
+        currentIdx++;
+        if (currentIdx >= dialogs.length) {
+            alert("Super! Du hast alle Dialoge richtig geordnet.");
+            currentIdx = 0;
+        }
+        initTask();
+    }
+
+    initTask();
+</script>
+
+</body>
+</html>
