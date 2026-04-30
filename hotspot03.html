@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video-Hotspot: посмотрим</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+            --success: #27ae60;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 800px;
+            background: #000;
+            border-radius: 15px;
+            position: relative;
+            aspect-ratio: 16 / 9;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            overflow: hidden;
+            border: 4px solid #333;
+        }
+
+        /* Video-Simulator Hintergrund */
+        .video-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            background: linear-gradient(45deg, #1a1a1a, #2c3e50);
+            user-select: none;
+        }
+
+        .video-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            padding: 0 20px;
+            transition: opacity 0.5s;
+        }
+
+        /* Der Hotspot */
+        .hotspot {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: rgba(231, 76, 60, 0.6);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+            animation: pulse 1.5s infinite;
+            z-index: 100;
+            text-align: center;
+            font-size: 0.9rem;
+            padding: 10px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(255,255,255,0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+        }
+
+        /* UI Elemente */
+        .controls {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-sizing: border-box;
+        }
+
+        .progress-bar {
+            flex-grow: 1;
+            height: 8px;
+            background: #444;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+        }
+
+        .play-btn {
+            background: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .score-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            color: white;
+        }
+
+        @media (max-width: 600px) {
+            .video-text { font-size: 1rem; }
+            .hotspot { width: 90px; height: 90px; font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="player">
+    <div id="start-overlay" class="overlay">
+        <h2>Hotspot-Training</h2>
+        <p>Klicke auf die roten Kreise, wenn die Definition erscheint!</p>
+        <button class="play-btn" style="padding: 10px 30px; font-size: 1.1rem;" onclick="startVideo()">Video starten</button>
+    </div>
+
+    <div id="end-overlay" class="overlay" style="display:none">
+        <h2>Training beendet!</h2>
+        <p id="final-score"></p>
+        <button class="play-btn" onclick="location.reload()">Nochmal versuchen</button>
+    </div>
+
+    <div class="score-display">Punkte: <span id="score">0</span></div>
+    
+    <div class="video-content">
+        <div id="caption" class="video-text">Bereit?</div>
+    </div>
+
+    <div id="hotspot" class="hotspot" onclick="catchHotspot()">HIER KLICKEN!</div>
+
+    <div class="controls">
+        <button class="play-btn" id="play-pause-ui">▶</button>
+        <div class="progress-bar">
+            <div id="progress" class="progress-fill"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let score = 0;
+    let time = 0;
+    let duration = 30; // Sekunden
+    let isRunning = false;
+    let hotspotActive = false;
+
+    // Zeitplan für Ereignisse (Sekunde : {text, hotspot})
+    const timeline = {
+        2: { text: "Willkommen zum Video 'посмотрим'!", hotspot: false },
+        6: { text: "Was bedeutet es eigentlich?", hotspot: false },
+        10: { text: "1. Wir wissen es JETZT noch nicht.", hotspot: true, x: '20%', y: '30%' },
+        15: { text: "2. Wir erfahren es erst in der ZUKUNFT.", hotspot: true, x: '60%', y: '50%' },
+        20: { text: "Es ist also eine vertagte Entscheidung.", hotspot: false },
+        24: { text: "Definition verstanden?", hotspot: true, x: '40%', y: '20%' },
+        28: { text: "Super gemacht!", hotspot: false }
+    };
+
+    function startVideo() {
+        document.getElementById('start-overlay').style.display = 'none';
+        isRunning = true;
+        update();
+    }
+
+    function update() {
+        if (!isRunning) return;
+
+        time += 0.1;
+        const seconds = Math.floor(time);
+        const progressPercent = (time / duration) * 100;
+        
+        document.getElementById('progress').style.width = progressPercent + "%";
+
+        // Timeline prüfen
+        if (timeline[seconds]) {
+            document.getElementById('caption').innerText = timeline[seconds].text;
+            
+            if (timeline[seconds].hotspot && !hotspotActive) {
+                showHotspot(timeline[seconds].x, timeline[seconds].y);
+            }
+        }
+
+        // Hotspot nach 2 Sekunden automatisch ausblenden, wenn nicht geklickt
+        if (hotspotActive && (time % 1 > 0.8)) {
+            // Kleiner Puffer
+        }
+
+        if (time >= duration) {
+            endGame();
+            return;
+        }
+
+        setTimeout(update, 100);
+    }
+
+    function showHotspot(x, y) {
+        const hs = document.getElementById('hotspot');
+        hs.style.left = x;
+        hs.style.top = y;
+        hs.style.display = 'flex';
+        hotspotActive = true;
+
+        // Hotspot verschwindet nach 2.5 Sekunden von selbst
+        setTimeout(() => {
+            hs.style.display = 'none';
+            hotspotActive = false;
+        }, 2500);
+    }
+
+    function catchHotspot() {
+        if (!hotspotActive) return;
+        score += 10;
+        document.getElementById('score').innerText = score;
+        document.getElementById('hotspot').style.display = 'none';
+        hotspotActive = false;
+        
+        // Optisches Feedback
+        document.getElementById('player').style.borderColor = '#27ae60';
+        setTimeout(() => {
+            document.getElementById('player').style.borderColor = '#333';
+        }, 300);
+    }
+
+    function endGame() {
+        isRunning = false;
+        document.getElementById('end-overlay').style.display = 'flex';
+        document.getElementById('final-score').innerText = "Du hast " + score + " Punkte gesammelt!";
+    }
+</script>
+
+</body>
+</html>
