@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji-Interpreter: посмотрим</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #9b59b6;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #fdfaff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 650px;
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(155, 89, 182, 0.1);
+            text-align: center;
+        }
+
+        h2 { color: var(--primary); margin-bottom: 10px; }
+        .instruction { color: #666; margin-bottom: 30px; line-height: 1.4; }
+
+        .target-phrase {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            background: #fcfcfc;
+        }
+
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .emoji-card {
+            background: white;
+            border: 2px solid #eee;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .emoji-card:hover {
+            transform: scale(1.05);
+            border-color: var(--accent);
+        }
+
+        .emoji-card.selected-correct {
+            border-color: var(--success);
+            background-color: #eafaf1;
+            transform: scale(1.05);
+        }
+
+        .emoji-card.selected-wrong {
+            border-color: var(--error);
+            background-color: #fdf2f2;
+            opacity: 0.6;
+        }
+
+        .emoji-icon { font-size: 3rem; }
+        .emoji-label { font-size: 0.8rem; color: #7f8c8d; font-weight: 600; }
+
+        .feedback-area {
+            min-height: 60px;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .btn-reset {
+            margin-top: 20px;
+            padding: 12px 25px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        @media (max-width: 500px) {
+            .emoji-grid { grid-template-columns: repeat(2, 1fr); }
+            .emoji-icon { font-size: 2.5rem; }
+            .target-phrase { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Emoji-Interpreter</h2>
+    <p class="instruction">Welche <b>drei</b> Emojis passen am besten zur Bedeutung von <b>посмотрим</b> (Wir wissen es erst in der Zukunft)?</p>
+    
+    <div class="target-phrase">посмотрим</div>
+
+    <div class="emoji-grid" id="grid">
+        <!-- JS generiert Emojis -->
+    </div>
+
+    <div id="feedback" class="feedback-area"></div>
+    
+    <button class="btn-reset" onclick="resetGame()">Neustart</button>
+</div>
+
+<script>
+    const emojis = [
+        { char: "🤔", label: "Nachdenken", correct: true, text: "Richtig! Man weiß es jetzt noch nicht." },
+        { char: "🔮", label: "Kristallkugel", correct: true, text: "Genau! Der Blick in die Zukunft." },
+        { char: "⏳", label: "Sanduhr", correct: true, text: "Stimmt! Man muss abwarten." },
+        { char: "✅", label: "Erledigt", correct: false, text: "Nicht ganz. Das wäre eine feste Zusage." },
+        { char: "🍕", label: "Pizza", correct: false, text: "Lecker, hat aber nichts mit der Zeit zu tun." },
+        { char: "🏃‍♂️", label: "Rennen", correct: false, text: "Zu schnell! Wir warten lieber ab." }
+    ];
+
+    let foundCount = 0;
+
+    function initGame() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        foundCount = 0;
+        document.getElementById('feedback').style.display = 'none';
+
+        // Mischen der Emojis
+        const shuffled = [...emojis].sort(() => Math.random() - 0.5);
+
+        shuffled.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'emoji-card';
+            card.innerHTML = `
+                <span class="emoji-icon">${item.char}</span>
+                <span class="emoji-label">${item.label}</span>
+            `;
+            card.onclick = () => selectEmoji(card, item);
+            grid.appendChild(card);
+        });
+    }
+
+    function selectEmoji(card, item) {
+        if (card.classList.contains('selected-correct') || card.classList.contains('selected-wrong')) return;
+
+        const feedback = document.getElementById('feedback');
+        feedback.style.display = 'block';
+
+        if (item.correct) {
+            card.classList.add('selected-correct');
+            feedback.innerText = "✓ " + item.text;
+            feedback.style.backgroundColor = "#eafaf1";
+            feedback.style.color = "var(--success)";
+            foundCount++;
+            
+            if (foundCount === 3) {
+                feedback.innerText = "Hervorragend! Du hast alle passenden Symbole für die Ungewissheit gefunden.";
+                feedback.style.backgroundColor = "#d4edda";
+            }
+        } else {
+            card.classList.add('selected-wrong');
+            feedback.innerText = "✗ " + item.text;
+            feedback.style.backgroundColor = "#fdf2f2";
+            feedback.style.color = "var(--error)";
+        }
+    }
+
+    function resetGame() {
+        initGame();
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
