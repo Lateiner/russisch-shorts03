@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking: Die Skala der Gewissheit</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #f39c12;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f0f4f8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            padding: 1.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        h2 { text-align: center; color: var(--primary); margin-bottom: 8px; font-size: 1.5rem; }
+        .instruction { text-align: center; color: #555; margin-bottom: 20px; font-size: 0.95rem; line-height: 1.4; }
+
+        .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            padding: 0 5px;
+        }
+
+        .ranking-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rank-item {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            padding: 12px 15px;
+            border-radius: 12px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .rank-item:active { cursor: grabbing; }
+        .rank-item.dragging { opacity: 0.4; background: #eef2f7; border-style: dashed; }
+
+        .number {
+            background: var(--primary);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .label { flex-grow: 1; font-weight: 500; color: #333; }
+        .drag-handle { color: #ccc; font-size: 1.2rem; }
+
+        .feedback {
+            margin-top: 15px;
+            text-align: center;
+            font-weight: 600;
+            min-height: 24px;
+            font-size: 0.95rem;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 12px 5px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            color: white;
+        }
+
+        .btn:active { transform: scale(0.95); }
+        
+        .btn-reset { background: #95a5a6; }
+        .btn-solution { background: var(--accent); }
+        .btn-check { background: var(--success); }
+
+        /* Status-Farben */
+        .correct-pos { border-color: var(--success) !important; background: #f1fcf5; }
+        .wrong-pos { border-color: var(--error) !important; background: #fff5f5; }
+
+        @media (max-width: 480px) {
+            .controls { grid-template-columns: 1fr; }
+            h2 { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Sicherheits-Ranking</h2>
+    <p class="instruction">Bringe die Antworten in die richtige Reihenfolge:<br><b>Sicher (oben) bis Absage (unten).</b></p>
+    
+    <div class="scale-labels">
+        <span>Sicher</span>
+        <span>Unsicher</span>
+    </div>
+
+    <div class="ranking-list" id="sortable-list">
+        <!-- JS generiert Items -->
+    </div>
+
+    <div id="feedback" class="feedback"></div>
+
+    <div class="controls">
+        <button class="btn btn-reset" onclick="resetGame()">Neustart</button>
+        <button class="btn btn-solution" onclick="showSolution()">Lösung</button>
+        <button class="btn btn-check" onclick="checkRanking()">Prüfen</button>
+    </div>
+</div>
+
+<script>
+    const correctOrder = [
+        { id: "c1", text: "Конечно! (Natürlich!)" },
+        { id: "c2", text: "Да. (Ja.)" },
+        { id: "c3", text: "Я надеюсь. (Ich hoffe.)" },
+        { id: "c4", text: "Посмотрим... (Mal sehen...)" },
+        { id: "c5", text: "Вряд ли. (Kaum/Unwahrscheinlich.)" },
+        { id: "c6", text: "Нет. (Nein.)" }
+    ];
+
+    function initGame(shuffle = true) {
+        const list = document.getElementById('sortable-list');
+        const feedback = document.getElementById('feedback');
+        feedback.innerText = "";
+        list.innerHTML = "";
+        
+        let displayItems = shuffle 
+            ? [...correctOrder].sort(() => Math.random() - 0.5) 
+            : [...correctOrder];
+
+        displayItems.forEach((item, index) => {
+            const el = document.createElement('div');
+            el.className = 'rank-item';
+            el.draggable = true;
+            el.dataset.id = item.id;
+            el.innerHTML = `
+                <div class="number">${index + 1}</div>
+                <div class="label">${item.text}</div>
+                <div class="drag-handle">☰</div>
+            `;
+            
+            el.addEventListener('dragstart', () => el.classList.add('dragging'));
+            el.addEventListener('dragend', () => el.classList.remove('dragging'));
+            list.appendChild(el);
+        });
+    }
+
+    const listContainer = document.getElementById('sortable-list');
+    listContainer.addEventListener('dragover', e => {
+        e.preventDefault();
+        const dragging = document.querySelector('.dragging');
+        const afterElement = getDragAfterElement(listContainer, e.clientY);
+        if (afterElement == null) {
+            listContainer.appendChild(dragging);
+        } else {
+            listContainer.insertBefore(dragging, afterElement);
+        }
+    });
+
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.rank-item:not(.dragging)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function checkRanking() {
+        const currentElements = [...document.querySelectorAll('.rank-item')];
+        const feedback = document.getElementById('feedback');
+        let correctCount = 0;
+
+        currentElements.forEach((el, index) => {
+            if (el.dataset.id === correctOrder[index].id) {
+                el.classList.add('correct-pos');
+                el.classList.remove('wrong-pos');
+                correctCount++;
+            } else {
+                el.classList.add('wrong-pos');
+                el.classList.remove('correct-pos');
+            }
+        });
+
+        if (correctCount === 6) {
+            feedback.innerText = "✓ Hervorragend! Alles richtig sortiert.";
+            feedback.style.color = "var(--success)";
+        } else {
+            feedback.innerText = `Noch nicht ganz: ${correctCount} von 6 sind korrekt.`;
+            feedback.style.color = "var(--error)";
+        }
+    }
+
+    function showSolution() {
+        initGame(false);
+        document.querySelectorAll('.rank-item').forEach(el => el.classList.add('correct-pos'));
+        const feedback = document.getElementById('feedback');
+        feedback.innerText = "Lösung: Посмотрим bildet die Mitte der Ungewissheit.";
+        feedback.style.color = "var(--accent)";
+    }
+
+    function resetGame() {
+        initGame(true);
+    }
+
+    // Erster Start
+    initGame();
+</script>
+
+</body>
+</html>
