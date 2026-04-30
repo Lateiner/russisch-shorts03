@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vokabel-Lernkartei: посмотрим</title>
+    <style>
+        :root {
+            --bg-color: #f0f7f4;
+            --primary-green: #2d6a4f;
+            --secondary-green: #40916c;
+            --light-green: #d8f3dc;
+            --accent-green: #1b4332;
+            --card-front: #ffffff;
+            --card-back: #f8fff9;
+            --text-dark: #1b4332;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            color: var(--primary-green);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Fortschrittsanzeige */
+        .progress {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--secondary-green);
+        }
+
+        /* Karteikarten-Bereich */
+        .flashcard-wrapper {
+            perspective: 1000px;
+            width: 100%;
+            height: 300px;
+            cursor: pointer;
+        }
+
+        .flashcard {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-radius: 20px;
+        }
+
+        .flashcard.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            border-radius: 20px;
+            border: 4px solid var(--secondary-green);
+        }
+
+        .card-front {
+            background-color: var(--card-front);
+            color: var(--primary-green);
+        }
+
+        .card-back {
+            background-color: var(--card-back);
+            color: var(--accent-green);
+            transform: rotateY(180deg);
+        }
+
+        .vokabel-text {
+            font-weight: bold;
+            line-height: 1.2;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        /* Navigation & Buttons */
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .nav-buttons {
+            grid-column: span 2;
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .btn {
+            background-color: var(--primary-green);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+            font-size: 1rem;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn:hover {
+            background-color: var(--secondary-green);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-green);
+            font-size: 0.9rem;
+        }
+
+        /* Keyboard Help */
+        .help {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: #666;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 480px) {
+            .flashcard-wrapper { height: 250px; }
+            .vokabel-text { font-size: 1.5rem !important; }
+            .btn { padding: 10px; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Vokabel-Lernkartei</h1>
+        
+        <div class="progress" id="progress">1 / 30</div>
+
+        <div class="flashcard-wrapper" onclick="flipCard()" id="card-trigger">
+            <div class="flashcard" id="card">
+                <div class="card-face card-front">
+                    <div id="text-front" class="vokabel-text">Lade...</div>
+                </div>
+                <div class="card-face card-back">
+                    <div id="text-back" class="vokabel-text">Lade...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="nav-buttons">
+                <button class="btn" onclick="prevCard()">← Vorherige</button>
+                <button class="btn" onclick="nextCard()">Nächste →</button>
+            </div>
+            <button class="btn btn-secondary" onclick="resetToStart()">An den Anfang</button>
+            <button class="btn btn-secondary" onclick="shuffleCards()">🔀 Mischen</button>
+        </div>
+
+        <div class="help">
+            Steuerung: <b>Pfeiltasten</b> für Navigation | <b>Leertaste/Enter</b> zum Umdrehen | <b>Pos1</b> für Anfang
+        </div>
+    </div>
+
+    <script>
+        // Die Vokabelliste basierend auf deinen Vorgaben
+        const rawData = [
+            ["1. посмотре́ть (SV) – сма́тривать (NSV)", "ansehen, schauen"],
+            ["2. да", "ja"],
+            ["3. нет", "nein"],
+            ["4. коне́чно", "natürlich, selbstverständlich"],
+            ["5. наде́яться (NSV)", "hoffen"],
+            ["6. вряд ли", "kaum, unwahrscheinlich"],
+            ["7. экза́мен", "Prüfung"],
+            ["8. сдать (SV) – сдава́ть (NSV)", "bestehen (Prüfung), ablegen"],
+            ["9. как", "wie"],
+            ["10. я", "ich"],
+            ["11. знать (NSV) – узна́ть (SV)", "wissen, erfahren"],
+            ["12. бу́дущее", "Zukunft"],
+            ["13. ждать (NSV) – подожда́ть (SV)", "warten"],
+            ["14. ду́мать (NSV) – поду́мать (SV)", "denken, nachdenken"],
+            ["15. криста́льный шар", "Kristallkugel"],
+            ["16. песо́чные часы́", "Sanduhr"],
+            ["17. ситуа́ция", "Situation"],
+            ["18. отве́т", "Antwort"],
+            ["19. отве́тить (SV) – отвеча́ть (NSV)", "antworten"],
+            ["20. ве́рить (NSV) – пове́рить (SV)", "glauben"],
+            ["21. возмо́жно", "möglich, vielleicht"],
+            ["22. может быть", "kann sein"],
+            ["23. реше́ние", "Entscheidung, Lösung"],
+            ["24. реши́ть (SV) – реша́ть (NSV)", "entscheiden, lösen"],
+            ["25. план", "Plan"],
+            ["26. за́втра", "morgen"],
+            ["27. по́зже", "später"],
+            ["28. сейча́с", "jetzt"],
+            ["29. слы́шать (NSV) – услы́шать (SV)", "hören"],
+            ["30. понима́ть (NSV) – поня́ть (SV)", "verstehen"]
+        ];
+
+        let cards = [...rawData];
+        let currentIndex = 0;
+        let isFlipped = false;
+
+        const cardElement = document.getElementById('card');
+        const textFront = document.getElementById('text-front');
+        const textBack = document.getElementById('text-back');
+        const progressElement = document.getElementById('progress');
+
+        // Initialisierung
+        function updateCard() {
+            isFlipped = false;
+            cardElement.classList.remove('flipped');
+            
+            const frontContent = cards[currentIndex][0];
+            const backContent = cards[currentIndex][1];
+            
+            textFront.innerText = frontContent;
+            textBack.innerText = backContent;
+            
+            // Dynamische Schriftgröße
+            adjustFontSize(textFront, frontContent);
+            adjustFontSize(textBack, backContent);
+            
+            progressElement.innerText = `${currentIndex + 1} / ${cards.length}`;
+        }
+
+        function adjustFontSize(element, text) {
+            let size = 2; // Start in rem
+            if (text.length > 50) size = 1.2;
+            else if (text.length > 30) size = 1.5;
+            else if (text.length > 15) size = 1.8;
+            element.style.fontSize = size + "rem";
+        }
+
+        function flipCard() {
+            isFlipped = !isFlipped;
+            cardElement.classList.toggle('flipped');
+        }
+
+        function nextCard() {
+            if (currentIndex < cards.length - 1) {
+                currentIndex++;
+                updateCard();
+            }
+        }
+
+        function prevCard() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateCard();
+            }
+        }
+
+        function resetToStart() {
+            currentIndex = 0;
+            updateCard();
+        }
+
+        function shuffleCards() {
+            for (let i = cards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cards[i], cards[j]] = [cards[j], cards[i]];
+            }
+            currentIndex = 0;
+            updateCard();
+        }
+
+        // Tastatursteuerung
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case ' ':
+                case 'Enter':
+                    e.preventDefault(); // Verhindert Scrollen bei Leertaste
+                    flipCard();
+                    break;
+                case 'ArrowRight':
+                    nextCard();
+                    break;
+                case 'ArrowLeft':
+                    prevCard();
+                    break;
+                case 'Home':
+                    resetToStart();
+                    break;
+            }
+        });
+
+        // Start
+        updateCard();
+    </script>
+</body>
+</html>
