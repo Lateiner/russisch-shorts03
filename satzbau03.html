@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satzbau-Profi: посмотрим</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            align-self: center;
+        }
+
+        .progress { font-size: 0.8rem; color: #888; margin-bottom: 10px; text-align: center; }
+        h2 { text-align: center; color: var(--primary); margin: 0 0 10px 0; font-size: 1.3rem; }
+        .translation { text-align: center; font-style: italic; color: #555; margin-bottom: 20px; min-height: 3em; display: flex; align-items: center; justify-content: center; }
+
+        .drop-zone {
+            min-height: 60px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: #fff;
+            justify-content: center;
+        }
+
+        .word-pool {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            min-height: 120px;
+        }
+
+        .word-bubble {
+            background: white;
+            border: 2px solid var(--primary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .word-bubble:active { transform: scale(0.9); }
+        .word-bubble.correct-anim { background: var(--success); color: white; border-color: var(--success); }
+        .word-bubble.wrong-anim { animation: shake 0.4s; background: var(--error); color: white; border-color: var(--error); }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .feedback-msg {
+            text-align: center;
+            font-weight: bold;
+            height: 25px;
+            margin: 10px 0;
+        }
+
+        .hidden { display: none; }
+
+        .finish-screen { text-align: center; padding: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="game-container">
+    <div class="progress">Satz <span id="current-num">1</span> von 6</div>
+    <h2 id="task-title">Bilde den Satz:</h2>
+    <div class="translation" id="translation-text"></div>
+    
+    <div class="drop-zone" id="drop-zone"></div>
+    <div class="word-pool" id="word-pool"></div>
+    <div id="feedback" class="feedback-msg"></div>
+</div>
+
+<div class="container hidden" id="finish-container">
+    <div class="finish-screen">
+        <h2>🎉 Super gemacht!</h2>
+        <p>Du hast alle 6 Sätze mit <b>посмотрим</b> erfolgreich gebaut.</p>
+        <button class="word-bubble" style="background: var(--accent); color: white; border: none; margin-top: 20px; cursor: pointer;" onclick="location.reload()">Nochmal starten</button>
+    </div>
+</div>
+
+<script>
+    const exerciseData = [
+        {
+            german: "Mal sehen, wie ich die Prüfungen bestehe.",
+            words: ["Посмотрим,", "как", "я", "сдам", "экзамены."],
+            order: [0, 1, 2, 3, 4]
+        },
+        {
+            german: "Mal sehen, was das Wetter morgen macht.",
+            words: ["Посмотрим,", "какая", "завтра", "будет", "погода."],
+            order: [0, 1, 2, 3, 4]
+        },
+        {
+            german: "Mal sehen, ob er zur Party kommt.",
+            words: ["Посмотрим,", "придёт", "ли", "он", "на", "вечеринку."],
+            order: [0, 1, 2, 3, 4, 5]
+        },
+        {
+            german: "Mal sehen, wann wir uns treffen.",
+            words: ["Посмотрим,", "когда", "мы", "встретимся."],
+            order: [0, 1, 2, 3]
+        },
+        {
+            german: "Mal sehen, wer das Spiel gewinnt.",
+            words: ["Посмотрим,", "кто", "выиграет", "игру."],
+            order: [0, 1, 2, 3]
+        },
+        {
+            german: "Ich habe viel Arbeit... mal sehen.",
+            words: ["У", "меня", "много", "работы...", "посмотрим."],
+            order: [0, 1, 2, 3, 4]
+        }
+    ];
+
+    let currentStep = 0;
+    let currentInputIdx = 0;
+
+    function initStep() {
+        const data = exerciseData[currentStep];
+        document.getElementById('current-num').innerText = currentStep + 1;
+        document.getElementById('translation-text').innerText = data.german;
+        document.getElementById('drop-zone').innerHTML = '';
+        document.getElementById('feedback').innerText = '';
+        currentInputIdx = 0;
+
+        const pool = document.getElementById('word-pool');
+        pool.innerHTML = '';
+
+        // Wörter für den Pool mischen
+        let shuffled = data.words.map((w, i) => ({ val: w, id: i }));
+        shuffled.sort(() => Math.random() - 0.5);
+
+        shuffled.forEach(obj => {
+            const btn = document.createElement('div');
+            btn.className = 'word-bubble';
+            btn.innerText = obj.val;
+            btn.onclick = () => handleWordClick(btn, obj.id, obj.val);
+            pool.appendChild(btn);
+        });
+    }
+
+    function handleWordClick(element, wordId, wordText) {
+        const data = exerciseData[currentStep];
+        const feedback = document.getElementById('feedback');
+        
+        // Ist es das richtige nächste Wort in der Reihenfolge?
+        if (wordId === data.order[currentInputIdx]) {
+            // Richtig
+            element.classList.add('hidden');
+            const dropZone = document.getElementById('drop-zone');
+            const correctWord = document.createElement('div');
+            correctWord.className = 'word-bubble correct-anim';
+            correctWord.innerText = wordText;
+            dropZone.appendChild(correctWord);
+            
+            feedback.innerText = "Gut!";
+            feedback.style.color = "var(--success)";
+            currentInputIdx++;
+
+            // Satz fertig?
+            if (currentInputIdx === data.words.length) {
+                feedback.innerText = "Perfekt! Weiter geht's...";
+                setTimeout(() => {
+                    nextStep();
+                }, 1500);
+            }
+        } else {
+            // Falsch
+            element.classList.add('wrong-anim');
+            feedback.innerText = "Probier ein anderes Wort!";
+            feedback.style.color = "var(--error)";
+            setTimeout(() => {
+                element.classList.remove('wrong-anim');
+            }, 400);
+        }
+    }
+
+    function nextStep() {
+        currentStep++;
+        if (currentStep < exerciseData.length) {
+            initStep();
+        } else {
+            document.getElementById('game-container').classList.add('hidden');
+            document.getElementById('finish-container').classList.remove('hidden');
+        }
+    }
+
+    initStep();
+</script>
+
+</body>
+</html>
