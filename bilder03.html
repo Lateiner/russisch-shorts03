@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Situations-Matching: посмотрим</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            padding: 1.5rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+
+        h2 { text-align: center; color: var(--primary); margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 25px; font-size: 0.9rem; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border: 2px solid #eee;
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        .emoji {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .situation-text {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .feedback {
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-top: 10px;
+            min-height: 1.2rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* Zustände */
+        .card.correct { border-color: var(--success); background-color: #f1fcf5; }
+        .card.wrong { border-color: var(--error); background-color: #fff5f5; }
+        .card.correct .feedback { color: var(--success); opacity: 1; }
+        .card.wrong .feedback { color: var(--error); opacity: 1; }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+
+        .btn-reset {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        @media (max-width: 400px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Wo passt „посмотрим“?</h2>
+    <p class="subtitle">Klicke auf die Bilder/Situationen, in denen die Antwort „Mal sehen...“ am sinnvollsten ist.</p>
+    
+    <div class="grid" id="game-grid">
+        <!-- Cards werden per JS generiert -->
+    </div>
+
+    <div class="footer">
+        <button class="btn-reset" onclick="renderGame()">Spiel zurücksetzen</button>
+    </div>
+</div>
+
+<script>
+    const scenarios = [
+        {
+            id: 1,
+            emoji: "📚❌",
+            text: "Jemand lernt gar nicht für die schwere Prüfung morgen.",
+            isCorrect: true,
+            feedback: "Richtig! Abwarten, was passiert (Ignoranz/Ungewissheit)."
+        },
+        {
+            id: 2,
+            emoji: "🏔️💻",
+            text: "Ein riesiger Berg Arbeit liegt vor dir, aber Freunde fragen nach Kino.",
+            isCorrect: true,
+            feedback: "Richtig! Du kannst dich jetzt noch nicht festlegen."
+        },
+        {
+            id: 3,
+            emoji: "✅🎟️",
+            text: "Du hast das Ticket schon gekauft und die Tasche gepackt.",
+            isCorrect: false,
+            feedback: "Falsch. Hier ist alles klar – das ist ein 'Ja!'."
+        },
+        {
+            id: 4,
+            emoji: "⛅❓",
+            text: "Die Wetter-App zeigt für das Picknick morgen 50% Regenrisiko.",
+            isCorrect: true,
+            feedback: "Richtig! Man muss bis morgen abwarten."
+        },
+        {
+            id: 5,
+            emoji: "🍕😋",
+            text: "Du hast riesigen Hunger und jemand bietet dir Pizza an.",
+            isCorrect: false,
+            feedback: "Falsch. Da sagst du sofort 'Ja' oder 'Nein'."
+        },
+        {
+            id: 6,
+            emoji: "🔮🤷‍♂️",
+            text: "Jemand fragt dich, was du in genau 10 Jahren machen wirst.",
+            isCorrect: true,
+            feedback: "Richtig! Die Zukunft ist völlig offen."
+        }
+    ];
+
+    function renderGame() {
+        const grid = document.getElementById('game-grid');
+        grid.innerHTML = '';
+        
+        // Zufällige Reihenfolge
+        const shuffled = [...scenarios].sort(() => Math.random() - 0.5);
+
+        shuffled.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.onclick = () => checkCard(card, item);
+            
+            card.innerHTML = `
+                <div>
+                    <span class="emoji">${item.emoji}</span>
+                    <div class="situation-text">${item.text}</div>
+                </div>
+                <div class="feedback"></div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function checkCard(element, data) {
+        // Klick verhindern, wenn schon gelöst
+        if (element.classList.contains('correct') || element.classList.contains('wrong')) return;
+
+        const feedbackDiv = element.querySelector('.feedback');
+        
+        if (data.isCorrect) {
+            element.classList.add('correct');
+            feedbackDiv.innerText = "✓ " + data.feedback;
+        } else {
+            element.classList.add('wrong');
+            feedbackDiv.innerText = "✗ " + data.feedback;
+        }
+    }
+
+    // Initialisierung
+    renderGame();
+</script>
+
+</body>
+</html>
